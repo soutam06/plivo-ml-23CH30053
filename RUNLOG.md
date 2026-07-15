@@ -33,5 +33,11 @@
 ## Run 6: MobileLLM "Deep and Thin" Architecture
 - **Hypothesis**: Current research (like MobileLLM) indicates that for sub-billion parameter models, scaling depth is far more effective than scaling width. We will reshape our model to ride the 2M parameter cap by making it Deep and Thin: reducing embedding dimensions to 128 but massively stacking 9 transformer layers. This should allow for much more complex feature extraction while remaining within budget.
 - **Changes**: Updated `Config` in `model.py` to `n_layer=9`, `n_embd=128`. Set SwiGLU `hidden_dim = 3 * dim`. Kept learning rate at `2e-3`.
+- **Score (BPB)**: 2.2227
+- **Conclusion**: The Deep and Thin architecture performed better than the Wide architecture (Run 4), but still could not beat the highly efficient 1.29M model from Run 5. This definitively proves that for a strict 2000-step limit, maximizing parameter count is detrimental; the model simply runs out of steps to converge.
+
+## Run 7: Advanced Speedrun Tricks (ReLU², Zero-Init, Untied Head)
+- **Hypothesis**: Incorporating advanced tricks from the modded-nanogpt speedrun will optimize the highly successful 1.3M parameter architecture. Replacing SwiGLU with Squared ReLU (ReLU²) provides faster computation and excellent regularization. Zero-initializing the residual projection layers ensures the model starts perfectly stable (as an identity function), maximizing the utility of our high 2e-3 learning rate. Untying the token embeddings from the LM head adds vital expressivity at the output layer for only ~40k parameters.
+- **Changes**: Set `tie_weights = False` in `Config`. Replaced `SwiGLU` with `SquaredReLU` (`F.relu(x)**2`). Added `nn.init.zeros_` to `proj` weights and biases in `SelfAttention` and `SquaredReLU`.
 - **Score (BPB)**: TBD
 - **Conclusion**: TBD

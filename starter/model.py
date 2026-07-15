@@ -12,11 +12,11 @@ import torch.nn.functional as F
 class Config:
     vocab_size = 256      # byte-level tokenizer default
     block_size = 128
-    n_layer = 9
+    n_layer = 4
     n_head = 4
-    n_embd = 128
+    n_embd = 160
     dropout = 0.0
-    tie_weights = True   # <- enabled weight tying
+    tie_weights = False   # Untied head for more expressivity
 
 
 class RMSNorm(nn.Module):
@@ -30,17 +30,18 @@ class RMSNorm(nn.Module):
         return self.weight * norm
 
 
-class SwiGLU(nn.Module):
+class SquaredReLU(nn.Module):
     def __init__(self, dim):
         super().__init__()
-        # Use 3 * dim as the standard SwiGLU hidden dim for 128 embed size
-        hidden_dim = 3 * dim
-        self.w1 = nn.Linear(dim, hidden_dim, bias=False)
-        self.w2 = nn.Linear(dim, hidden_dim, bias=False)
-        self.w3 = nn.Linear(hidden_dim, dim, bias=False)
+        hidden_dim = 4 * dim
+        self.fc1 = nn.Linear(dim, hidden_dim)
+        self.proj = nn.Linear(hidden_dim, dim)
+        # Zero-Init for perfect early gradient flow
+        nn.init.zeros_(self.proj.weight)
+        nn.init.zeros_(self.proj.bias)
 
     def forward(self, x):
-        return self.w3(F.silu(self.w1(x)) * self.w2(x))
+        return self.proj(F.relu(self.fc1(x)) ** 2)
 
 
 class SelfAttention(nn.Module):
@@ -49,6 +50,9 @@ class SelfAttention(nn.Module):
         self.n_head = cfg.n_head
         self.qkv = nn.Linear(cfg.n_embd, 3 * cfg.n_embd)
         self.proj = nn.Linear(cfg.n_embd, cfg.n_embd)
+        # Zero-Init for perfect early gradient flow
+        nn.init.zeros_(self.proj.weight)
+        nn.init.zeros_(self.proj.bias)
         self.drop = nn.Dropout(cfg.dropout)
 
     def forward(self, x):
@@ -68,7 +72,7 @@ class Block(nn.Module):
         self.ln1 = RMSNorm(cfg.n_embd)
         self.attn = SelfAttention(cfg)
         self.ln2 = RMSNorm(cfg.n_embd)
-        self.mlp = SwiGLU(cfg.n_embd)
+        self.mlp = SquaredReLU(cfg.n_embd)
 
 
     def forward(self, x):
