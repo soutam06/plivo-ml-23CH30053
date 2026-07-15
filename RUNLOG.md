@@ -27,5 +27,11 @@
 ## Run 5: Reverting Scale and Pushing the Learning Rate
 - **Hypothesis**: The 1.29M parameter model from Run 3 was our most sample-efficient architecture. By reverting the parameter scale and removing QK-Norm, we fix the loss observed in Run 4. To push beyond Run 3's score, we will increase the peak learning rate of our OneCycleLR scheduler from 1e-3 to 2e-3. Our RMSNorm and SwiGLU architecture should be robust enough to handle the faster learning rate without diverging.
 - **Changes**: Reverted `n_embd=160` and `n_head=4` in `model.py`. Removed QK-Norm. Changed `max_lr=2e-3` in `train.py`.
+- **Score (BPB)**: 2.1969
+- **Conclusion**: Reverting the scale and pushing the learning rate to 2e-3 dropped the BPB to our best score yet (2.1969). The 1.29M parameter architecture is highly efficient and stable enough to train very aggressively in 2000 steps.
+
+## Run 6: MobileLLM "Deep and Thin" Architecture
+- **Hypothesis**: Current research (like MobileLLM) indicates that for sub-billion parameter models, scaling depth is far more effective than scaling width. We will reshape our model to ride the 2M parameter cap by making it Deep and Thin: reducing embedding dimensions to 128 but massively stacking 9 transformer layers. This should allow for much more complex feature extraction while remaining within budget.
+- **Changes**: Updated `Config` in `model.py` to `n_layer=9`, `n_embd=128`. Set SwiGLU `hidden_dim = 3 * dim`. Kept learning rate at `2e-3`.
 - **Score (BPB)**: TBD
 - **Conclusion**: TBD

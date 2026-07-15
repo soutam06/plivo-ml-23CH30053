@@ -12,9 +12,9 @@ import torch.nn.functional as F
 class Config:
     vocab_size = 256      # byte-level tokenizer default
     block_size = 128
-    n_layer = 4
+    n_layer = 9
     n_head = 4
-    n_embd = 160
+    n_embd = 128
     dropout = 0.0
     tie_weights = True   # <- enabled weight tying
 
@@ -33,8 +33,8 @@ class RMSNorm(nn.Module):
 class SwiGLU(nn.Module):
     def __init__(self, dim):
         super().__init__()
-        # Use int(8 * dim / 3) to maintain parameter parity with standard MLPs
-        hidden_dim = int(8 * dim / 3)
+        # Use 3 * dim as the standard SwiGLU hidden dim for 128 embed size
+        hidden_dim = 3 * dim
         self.w1 = nn.Linear(dim, hidden_dim, bias=False)
         self.w2 = nn.Linear(dim, hidden_dim, bias=False)
         self.w3 = nn.Linear(hidden_dim, dim, bias=False)
