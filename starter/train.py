@@ -56,9 +56,11 @@ def main():
     print(f"model: {n:,} params")
     assert n <= MAX_PARAMS, f"cap: max {MAX_PARAMS:,} params"
 
-    # baseline choices, all questionable on purpose:
-    opt = torch.optim.Adam(model.parameters(), lr=args.lr)  # constant LR,
-    # no warmup, no schedule, no weight decay, no gradient clipping.
+    # Run 2: Optimizer and Scheduler upgrades
+    opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        opt, max_lr=1e-3, total_steps=args.steps, pct_start=0.1, anneal_strategy='cos'
+    )
 
     model.train()
     t0 = time.time()
@@ -68,7 +70,9 @@ def main():
         _, loss = model(x, y)
         opt.zero_grad(set_to_none=True)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step()
+        scheduler.step()
         losses.append(loss.item())
         if step % args.log_every == 0 or step == 1:
             avg = sum(losses[-args.log_every:]) / len(losses[-args.log_every:])
