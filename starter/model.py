@@ -13,8 +13,8 @@ class Config:
     vocab_size = 256      # byte-level tokenizer default
     block_size = 128
     n_layer = 4
-    n_head = 6
-    n_embd = 192
+    n_head = 4
+    n_embd = 160
     dropout = 0.0
     tie_weights = True   # <- enabled weight tying
 
@@ -48,16 +48,12 @@ class SelfAttention(nn.Module):
         super().__init__()
         self.n_head = cfg.n_head
         self.qkv = nn.Linear(cfg.n_embd, 3 * cfg.n_embd)
-        self.q_norm = RMSNorm(cfg.n_embd)
-        self.k_norm = RMSNorm(cfg.n_embd)
         self.proj = nn.Linear(cfg.n_embd, cfg.n_embd)
         self.drop = nn.Dropout(cfg.dropout)
 
     def forward(self, x):
         B, T, C = x.shape
         q, k, v = self.qkv(x).split(C, dim=2)
-        q = self.q_norm(q)
-        k = self.k_norm(k)
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)

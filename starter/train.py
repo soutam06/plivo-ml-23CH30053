@@ -56,10 +56,10 @@ def main():
     print(f"model: {n:,} params")
     assert n <= MAX_PARAMS, f"cap: max {MAX_PARAMS:,} params"
 
-    # Run 2: Optimizer and Scheduler upgrades
+    # Run 5: Increased learning rate
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        opt, max_lr=1e-3, total_steps=args.steps, pct_start=0.1, anneal_strategy='cos'
+        opt, max_lr=2e-3, total_steps=args.steps, pct_start=0.1, anneal_strategy='cos'
     )
 
     model.train()
