@@ -16,7 +16,31 @@ class Config:
     n_head = 4
     n_embd = 160
     dropout = 0.0
-    tie_weights = False   # <- one of many things worth questioning
+    tie_weights = True   # <- enabled weight tying
+
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim, eps=1e-5):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        norm = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        return self.weight * norm
+
+
+class SwiGLU(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        # Use int(8 * dim / 3) to maintain parameter parity with standard MLPs
+        hidden_dim = int(8 * dim / 3)
+        self.w1 = nn.Linear(dim, hidden_dim, bias=False)
+        self.w2 = nn.Linear(dim, hidden_dim, bias=False)
+        self.w3 = nn.Linear(hidden_dim, dim, bias=False)
+
+    def forward(self, x):
+        return self.w3(F.silu(self.w1(x)) * self.w2(x))
 
 
 class SelfAttention(nn.Module):
@@ -41,12 +65,11 @@ class SelfAttention(nn.Module):
 class Block(nn.Module):
     def __init__(self, cfg):
         super().__init__()
-        self.ln1 = nn.LayerNorm(cfg.n_embd)
+        self.ln1 = RMSNorm(cfg.n_embd)
         self.attn = SelfAttention(cfg)
-        self.ln2 = nn.LayerNorm(cfg.n_embd)
-        self.mlp = nn.Sequential(
-            nn.Linear(cfg.n_embd, 4 * cfg.n_embd), nn.GELU(),
-            nn.Linear(4 * cfg.n_embd, cfg.n_embd), nn.Dropout(cfg.dropout))
+        self.ln2 = RMSNorm(cfg.n_embd)
+        self.mlp = SwiGLU(cfg.n_embd)
+
 
     def forward(self, x):
         x = x + self.attn(self.ln1(x))
@@ -62,7 +85,7 @@ class GPT(nn.Module):
         self.pos_emb = nn.Embedding(cfg.block_size, cfg.n_embd)
         self.drop = nn.Dropout(cfg.dropout)
         self.blocks = nn.ModuleList(Block(cfg) for _ in range(cfg.n_layer))
-        self.ln_f = nn.LayerNorm(cfg.n_embd)
+        self.ln_f = RMSNorm(cfg.n_embd)
         self.head = nn.Linear(cfg.n_embd, cfg.vocab_size, bias=False)
         if cfg.tie_weights:
             self.head.weight = self.tok_emb.weight
