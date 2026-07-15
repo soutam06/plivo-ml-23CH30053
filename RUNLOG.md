@@ -15,5 +15,11 @@
 ## Run 3: Architectural Swaps (RMSNorm + SwiGLU + Tie Weights)
 - **Hypothesis**: Replacing standard LayerNorm with RMSNorm and the GELU MLP with a SwiGLU activation (with parameter parity) improves parameter efficiency. Tying token and output embeddings frees up parameters that can be better utilized by the network.
 - **Changes**: Modified `model.py` to use `RMSNorm`, replaced `Block.mlp` with `SwiGLU(cfg.n_embd)`, and set `tie_weights = True` in `Config`.
+- **Score (BPB)**: 2.2031
+- **Conclusion**: The architectural swaps (SwiGLU, RMSNorm) and weight tying brought the parameter count down to 1.29M and improved the score to 2.2031.
+
+## Run 4: QK-Norm and Parameter Scaling
+- **Hypothesis**: Following "nanoGPT speedrun" best practices, applying RMSNorm to the Queries and Keys (QK-Norm) stabilizes attention, allowing for better gradient flow. Scaling the model parameters up from 1.29M to 1.83M (by increasing embedding dimensions to 192 and attention heads to 6) will utilize our 2M budget efficiently and maximize learning.
+- **Changes**: Added QK-Norm to `SelfAttention`. Scaled `n_embd` to 192 and `n_head` to 6 in `Config`.
 - **Score (BPB)**: TBD
 - **Conclusion**: TBD
